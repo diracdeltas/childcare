@@ -2,7 +2,7 @@ const PAGE_SIZE = 50;
 
 let allFacilities = [];
 let filtered = [];
-let sortKey = "most_recent_activity";
+let sortKey = "total_violations";
 let currentPage = 1;
 let filterViolations = true;
 let filterActive = false;
