@@ -5,7 +5,6 @@ let filtered = [];
 let sortKey = "total_violations";
 let currentPage = 1;
 let filterViolations = true;
-let filterActive = false;
 
 const _parser = new DOMParser();
 
@@ -72,7 +71,6 @@ function applyFilters() {
   const type = document.getElementById("type-filter").value;
 
   filtered = allFacilities.filter(f => {
-    if (filterActive && (f.status || "").toLowerCase() !== "active") return false;
     if (filterViolations && (f.total_violations || 0) === 0 && (f.total_complaints || 0) === 0) return false;
     if (county && f.county !== county) return false;
     if (type && f.type !== type) return false;
@@ -681,19 +679,10 @@ async function init() {
     this.classList.toggle("active", filterViolations);
     applyFilters();
   });
-  document.getElementById("btn-active").addEventListener("click", function() {
-    filterActive = !filterActive;
-    this.classList.toggle("active", filterActive);
-    applyFilters();
-  });
 
-  document.querySelectorAll(".sort-btn").forEach(btn => {
-    btn.addEventListener("click", function() {
-      document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-      this.classList.add("active");
-      sortKey = this.dataset.sort;
-      applySort();
-    });
+  document.getElementById("sort-select").addEventListener("change", function() {
+    sortKey = this.value;
+    applySort();
   });
 
   document.getElementById("facility-list").addEventListener("click", e => {

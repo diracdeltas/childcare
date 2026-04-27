@@ -66,21 +66,20 @@
     </select>
     <div class="btn-group">
       <button class="filter-btn active" id="btn-violations" title="Toggle facilities with no violations or complaints">With Issues Only</button>
-      <button class="filter-btn" id="btn-active" title="Show only active facilities">Active Only</button>
     </div>
     <span class="results-count" id="results-count"></span>
   </div>
 </div>
 
 <div class="sort-bar">
-  <span class="sort-label">Sort:</span>
-  <button class="sort-btn" data-sort="most_recent_activity">
-    <span>Most Recent</span><span class="sort-arrow">↓</span>
-  </button>
-  <button class="sort-btn" data-sort="type_a_violations">Type A ↓</button>
-  <button class="sort-btn active" data-sort="total_violations">Total Violations ↓</button>
-  <button class="sort-btn" data-sort="total_complaints">Complaints ↓</button>
-  <button class="sort-btn" data-sort="name_asc">Name A–Z</button>
+  <label class="sort-label" for="sort-select">Sort:</label>
+  <select id="sort-select" aria-label="Sort facilities">
+    <option value="most_recent_activity">Most Recent</option>
+    <option value="total_violations" selected>Total Violations ↓</option>
+    <option value="total_complaints">Complaints ↓</option>
+    <option value="type_a_violations">Type A Violations ↓</option>
+    <option value="name_asc">Name A–Z</option>
+  </select>
 </div>
 
 <main class="list-wrap" id="facility-list">
