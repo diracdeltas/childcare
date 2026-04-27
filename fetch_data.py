@@ -11,6 +11,8 @@ Usage:
 
 import requests
 import json
+import csv
+import io
 import time
 import os
 import sys
@@ -18,6 +20,8 @@ import argparse
 from datetime import datetime
 
 BASE_URL = "https://www.ccld.dss.ca.gov/transparencyapi/api"
+# CA CHHS open data resource for small FCCHs — CCLD search API returns HTTP 400 for type 0
+CHHS_SMALL_FCCH_RESOURCE = "4b5cc48d-03b1-4f42-a7d1-b9816903eb2b"
 HEADERS = {
     "DSS-Transparency-Config": json.dumps({
         "Version": "11.18.0R",
@@ -83,6 +87,88 @@ def get_cities_in_county(county):
     return cities
 
 
+def get_small_fcch_numbers(counties):
+    """Discover small FCCH facility numbers from two bulk sources combined.
+
+    The CCLD Transparency API rejects facType=0 (small family child care homes)
+    with HTTP 400. We use the union of:
+      1. CCLD bulk download (DownloadStateData/CHILDCAREHOMEmorethan8)
+      2. CA CHHS open data portal CSV
+    because each source contains facilities the other omits.
+    """
+    upper_counties = {c.upper() for c in counties} if counties else None
+    results = {}
+
+    def add_row(fnum, name, address, city, zipcode, status, county):
+        if fnum and fnum not in results:
+            results[fnum] = {
+                "FACILITYNUMBER": fnum,
+                "FACILITYNAME": name,
+                "STREETADDRESS": address,
+                "CITY": city,
+                "ZIPCODE": zipcode,
+                "STATUS": status,
+                "COUNTY": county,
+            }
+
+    # Source 1: CCLD bulk download
+    print("  [Family Child Care Home(Small)] — fetching from CCLD bulk download…")
+    try:
+        r = requests.get(
+            f"{BASE_URL}/DownloadStateData/CHILDCAREHOMEmorethan8",
+            headers=HEADERS, timeout=120,
+        )
+        r.raise_for_status()
+        for row in csv.DictReader(io.StringIO(r.text)):
+            county = row.get("County Name", "").strip()
+            if upper_counties and county.upper() not in upper_counties:
+                continue
+            add_row(
+                row.get("Facility Number", "").strip(),
+                row.get("Facility Name", "").strip(),
+                row.get("Facility Address", "").strip(),
+                row.get("Facility City", "").strip(),
+                row.get("Facility Zip", "").strip(),
+                row.get("Facility Status", "").strip(),
+                county,
+            )
+        print(f"    → {len(results)} from CCLD bulk")
+    except Exception as e:
+        print(f"  WARN: CCLD bulk download failed: {e}", file=sys.stderr)
+
+    before = len(results)
+
+    # Source 2: CA CHHS open data (supplements CCLD — each source has unique entries)
+    print("  [Family Child Care Home(Small)] — supplementing from CA CHHS open data…")
+    try:
+        meta = requests.get(
+            f"https://data.chhs.ca.gov/api/3/action/resource_show?id={CHHS_SMALL_FCCH_RESOURCE}",
+            timeout=15,
+        )
+        meta.raise_for_status()
+        url = meta.json()["result"]["url"]
+        r2 = requests.get(url, timeout=120)
+        r2.raise_for_status()
+        for row in csv.DictReader(io.StringIO(r2.text)):
+            county = row.get("county_name", "").strip()
+            if upper_counties and county.upper() not in upper_counties:
+                continue
+            add_row(
+                row.get("facility_number", "").strip(),
+                row.get("facility_name", "").strip(),
+                row.get("facility_address", "").strip(),
+                row.get("facility_city", "").strip(),
+                row.get("facility_zip", "").strip(),
+                row.get("facility_status", "").strip(),
+                county,
+            )
+        print(f"    → {len(results) - before} additional from CHHS open data")
+    except Exception as e:
+        print(f"  WARN: CHHS open data fetch failed: {e}", file=sys.stderr)
+
+    return results
+
+
 def discover_facilities(childcare_types, counties):
     """Phase 1: collect all unique facility numbers via search."""
     all_facilities = {}  # fac_num -> {basic, type}
@@ -124,6 +210,15 @@ def discover_facilities(childcare_types, counties):
         print(f"    → {count} unique facilities so far this type")
 
     print(f"\n  Total unique facilities discovered: {len(all_facilities)} ({total_searches} searches)")
+
+    small_fcch = get_small_fcch_numbers(counties)
+    added = 0
+    for fnum, basic in small_fcch.items():
+        if fnum not in all_facilities:
+            all_facilities[fnum] = {"basic": basic, "type": "Family Child Care Home(Small)"}
+            added += 1
+    print(f"  + {added} small FCCHs added ({len(small_fcch)} in region, {len(small_fcch)-added} already known)")
+    print(f"  Grand total: {len(all_facilities)} facilities")
     return all_facilities
 
 
@@ -243,7 +338,7 @@ def process(basic, type_name, detail):
         "address": (fd.get("STREETADDRESS") or basic.get("STREETADDRESS") or "").strip(),
         "city": (fd.get("CITY") or basic.get("CITY") or "").strip(),
         "zip": fd.get("ZIPCODE") or basic.get("ZIPCODE"),
-        "county": fd.get("COUNTY") or "",
+        "county": fd.get("COUNTY") or basic.get("COUNTY") or "",
         "status": fd.get("STATUS") or basic.get("STATUS") or "",
         "type": type_name,
         "capacity": fd.get("CAPACITY"),
@@ -265,6 +360,15 @@ def process(basic, type_name, detail):
     }
 
 
+def load_existing():
+    """Load already-fetched facilities from data/facilities.json as a warm cache."""
+    if os.path.exists("data/facilities.json"):
+        with open("data/facilities.json") as f:
+            data = json.load(f)
+        return {fac["number"]: fac for fac in data.get("facilities", []) if fac.get("number")}
+    return {}
+
+
 def load_cache():
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE) as f:
@@ -280,7 +384,8 @@ def save_cache(cache):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--county", nargs="+", help="Limit to specific counties (can specify multiple)")
-    parser.add_argument("--resume", action="store_true", help="Skip already-cached facilities")
+    parser.add_argument("--resume", action="store_true", help="Continue an interrupted run using the checkpoint file")
+    parser.add_argument("--full", action="store_true", help="Re-fetch all facilities, ignoring existing data/facilities.json")
     args = parser.parse_args()
 
     os.makedirs("data", exist_ok=True)
@@ -299,28 +404,32 @@ def main():
     all_facilities = discover_facilities(childcare_types, counties)
 
     print("\nPhase 2: Fetching facility details…")
-    cache = load_cache() if args.resume else {}
-    already_cached = set(cache.keys())
-    processed = list(cache.values())
+    # By default, warm-start from existing facilities.json to skip already-fetched facilities.
+    # --full ignores it and re-fetches everything from scratch.
+    # --resume additionally merges an in-progress checkpoint from an interrupted run.
+    existing = {} if args.full else load_existing()
+    checkpoint = load_cache() if args.resume else {}
+    already_fetched = set(existing) | set(checkpoint)
+    processed = list(existing.values()) + [v for k, v in checkpoint.items() if k not in existing]
 
-    to_fetch = [(n, i) for n, i in all_facilities.items() if n not in already_cached]
+    to_fetch = [(n, i) for n, i in all_facilities.items() if n not in already_fetched]
     total = len(to_fetch)
-    print(f"  {total} to fetch ({len(already_cached)} already cached)")
+    print(f"  {total} to fetch, {len(already_fetched) - len(set(already_fetched) - set(all_facilities))} already in data")
 
     for i, (fnum, info) in enumerate(to_fetch):
         if i % 200 == 0 and i > 0:
             pct = i * 100 // total
             print(f"  {i}/{total} ({pct}%)…")
-            save_cache({f["number"]: f for f in processed})
+            save_cache(checkpoint)
 
         detail = get_detail(fnum)
         if detail:
             result = process(info["basic"], info["type"], detail)
             processed.append(result)
-            cache[fnum] = result
+            checkpoint[fnum] = result
         time.sleep(RATE_LIMIT)
 
-    print(f"  Fetched {len(to_fetch)} details")
+    print(f"  Fetched {len(checkpoint)} new facilities")
 
     # Sort: most recent activity first
     processed.sort(
@@ -337,7 +446,7 @@ def main():
     with open("data/facilities.json", "w") as f:
         json.dump(output, f, separators=(",", ":"))
 
-    if not args.resume and os.path.exists(CACHE_FILE):
+    if os.path.exists(CACHE_FILE):
         os.remove(CACHE_FILE)
 
     with_a = sum(1 for f in processed if f["type_a_violations"] > 0)
