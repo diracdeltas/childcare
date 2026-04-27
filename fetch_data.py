@@ -338,7 +338,7 @@ def process(basic, type_name, detail):
         "address": (fd.get("STREETADDRESS") or basic.get("STREETADDRESS") or "").strip(),
         "city": (fd.get("CITY") or basic.get("CITY") or "").strip(),
         "zip": fd.get("ZIPCODE") or basic.get("ZIPCODE"),
-        "county": fd.get("COUNTY") or basic.get("COUNTY") or "",
+        "county": (fd.get("COUNTY") or basic.get("COUNTY") or "").strip().title(),
         "status": fd.get("STATUS") or basic.get("STATUS") or "",
         "type": type_name,
         "capacity": fd.get("CAPACITY"),

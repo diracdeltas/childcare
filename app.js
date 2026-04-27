@@ -7,6 +7,7 @@ let currentPage = 1;
 let filterViolations = true;
 
 const _parser = new DOMParser();
+const toTitle = s => (s || "").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
 function setHTML(el, html) {
   const doc = _parser.parseFromString(html, "text/html");
@@ -46,7 +47,7 @@ function populateFilters(facilities) {
       el.appendChild(opt);
     });
   }
-  fill("county-filter", [...new Set(facilities.map(f => f.county).filter(Boolean))].sort());
+  fill("county-filter", [...new Set(facilities.map(f => f.county).filter(Boolean).map(toTitle))].sort());
   fill("type-filter",   [...new Set(facilities.map(f => f.type).filter(Boolean))].sort());
 }
 
@@ -74,7 +75,7 @@ function applyFilters() {
 
   filtered = allFacilities.filter(f => {
     if (filterViolations && (f.total_violations || 0) === 0 && (f.total_complaints || 0) === 0) return false;
-    if (county && f.county !== county) return false;
+    if (county && toTitle(f.county || "") !== county) return false;
     if (type && f.type !== type) return false;
     if (query) {
       const haystack = [f.name, f.city, f.licensee, f.address, f.county].join(" ").toLowerCase();
