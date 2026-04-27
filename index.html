@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.ccld.dss.ca.gov; img-src data:; base-uri 'self'; form-action 'none'">
+<title>Bay Area Childcare Violations &amp; Complaints</title>
+<meta name="description" content="Violations, complaints, and inspection records for licensed childcare facilities, daycares, and preschools in the San Francisco Bay Area. Source: California CDSS Community Care Licensing Division (CCLD).">
+<meta name="keywords" content="bay area childcare, SF daycare, childcare violations, childcare complaints, CDSS, CCLD, childcare license, California childcare, San Francisco daycare, preschool violations, childcare inspection, San Mateo childcare, Alameda childcare, Santa Clara childcare, community care licensing">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://azuki.vip/childcare">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://azuki.vip/childcare">
+<meta property="og:title" content="Bay Area Childcare Violations &amp; Complaints">
+<meta property="og:description" content="Search violations, complaints, and inspection records for licensed childcare facilities in San Francisco, Alameda, San Mateo, and Santa Clara counties. Data from California CDSS CCLD.">
+<meta property="og:site_name" content="Bay Area Childcare Transparency">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <h1 class="masthead-title">Bay Area Childcare<br>Violations &amp; Complaints</h1>
+      <p class="masthead-sub">SF · Alameda · San Mateo · Santa Clara</p>
+    </div>
+    <div class="masthead-meta">
+      <div class="updated" id="updated-date">Loading…</div>
+      <div class="source">Source: <a href="https://www.ccld.dss.ca.gov/carefacilitysearch/" target="_blank" rel="noopener">CCLD DSS California</a></div>
+    </div>
+  </div>
+</header>
+
+<div class="stats-bar">
+  <div class="stats-inner" id="stats-bar">
+    <div class="stat"><span class="stat-value" id="stat-total">—</span><span class="stat-label">Facilities</span></div>
+    <div class="stat"><span class="stat-value red" id="stat-type-a">—</span><span class="stat-label">Type A Violations</span></div>
+    <div class="stat"><span class="stat-value amber" id="stat-type-b">—</span><span class="stat-label">Type B Violations</span></div>
+    <div class="stat"><span class="stat-value" id="stat-complaints">—</span><span class="stat-label">Complaints</span></div>
+    <div class="stat"><span class="stat-value red" id="stat-substantiated">—</span><span class="stat-label">Substantiated</span></div>
+  </div>
+</div>
+
+<div class="violation-key">
+  <div class="violation-key-inner">
+    <span class="vk-item"><span class="vk-dot vk-a"></span><strong>Type A</strong> — immediate risk to health or safety; can result in fines or license suspension</span>
+    <span class="vk-sep">·</span>
+    <span class="vk-item"><span class="vk-dot vk-b"></span><strong>Type B</strong> — lesser violation with no immediate risk; corrective action required</span>
+
+  </div>
+</div>
+
+<div class="controls-wrap">
+  <div class="controls-inner">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+      <input type="search" id="search-input" placeholder="Search by name, city, or licensee…" aria-label="Search facilities">
+    </div>
+    <select id="county-filter" aria-label="Filter by county">
+      <option value="">All Counties</option>
+    </select>
+    <select id="type-filter" aria-label="Filter by facility type">
+      <option value="">All Types</option>
+    </select>
+    <div class="btn-group">
+      <button class="filter-btn active" id="btn-violations" title="Toggle facilities with no violations or complaints">With Issues Only</button>
+      <button class="filter-btn" id="btn-active" title="Show only active facilities">Active Only</button>
+    </div>
+    <span class="results-count" id="results-count"></span>
+  </div>
+</div>
+
+<div class="sort-bar">
+  <span class="sort-label">Sort:</span>
+  <button class="sort-btn active" data-sort="most_recent_activity">
+    <span>Most Recent</span><span class="sort-arrow">↓</span>
+  </button>
+  <button class="sort-btn" data-sort="type_a_violations">Type A ↓</button>
+  <button class="sort-btn" data-sort="total_violations">Total Violations ↓</button>
+  <button class="sort-btn" data-sort="total_complaints">Complaints ↓</button>
+  <button class="sort-btn" data-sort="name_asc">Name A–Z</button>
+</div>
+
+<main class="list-wrap" id="facility-list">
+  <div class="center-message">
+    <div class="spinner"></div>
+    <p>Loading database…</p>
+  </div>
+</main>
+
+<footer>
+  <div>Data covers Bay Area childcare facilities (San Francisco, Alameda, San Mateo, and Santa Clara counties) sourced from the California Department of Social Services Community Care Licensing Division.</div>
+  <div>This site displays publicly available government records. <a href="https://www.ccld.dss.ca.gov/carefacilitysearch/" target="_blank" rel="noopener">Official CCLD Search →</a></div>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>
