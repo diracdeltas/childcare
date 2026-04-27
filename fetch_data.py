@@ -11,6 +11,8 @@ Usage:
 
 import requests
 import json
+import csv
+import io
 import time
 import os
 import sys
@@ -18,6 +20,8 @@ import argparse
 from datetime import datetime
 
 BASE_URL = "https://www.ccld.dss.ca.gov/transparencyapi/api"
+# CA CHHS open data resource for small FCCHs — CCLD search API returns HTTP 400 for type 0
+CHHS_SMALL_FCCH_RESOURCE = "4b5cc48d-03b1-4f42-a7d1-b9816903eb2b"
 HEADERS = {
     "DSS-Transparency-Config": json.dumps({
         "Version": "11.18.0R",
@@ -83,6 +87,47 @@ def get_cities_in_county(county):
     return cities
 
 
+def get_small_fcch_numbers(counties):
+    """Discover small FCCH facility numbers from CA CHHS open data.
+
+    The CCLD Transparency API rejects facType=0 (small family child care homes)
+    with HTTP 400, so we use the CA Health and Human Services open data portal
+    as the discovery source instead.
+    """
+    print("  [Family Child Care Home(Small)] — fetching from CA CHHS open data…")
+    try:
+        meta = requests.get(
+            f"https://data.chhs.ca.gov/api/3/action/resource_show?id={CHHS_SMALL_FCCH_RESOURCE}",
+            timeout=15,
+        )
+        meta.raise_for_status()
+        url = meta.json()["result"]["url"]
+        r = requests.get(url, timeout=120)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"  WARN: could not fetch small FCCH list: {e}", file=sys.stderr)
+        return {}
+
+    upper_counties = {c.upper() for c in counties} if counties else None
+    results = {}
+    for row in csv.DictReader(io.StringIO(r.text)):
+        county = row.get("county_name", "").strip()
+        if upper_counties and county.upper() not in upper_counties:
+            continue
+        fnum = row.get("facility_number", "").strip()
+        if fnum:
+            results[fnum] = {
+                "FACILITYNUMBER": fnum,
+                "FACILITYNAME": row.get("facility_name", "").strip(),
+                "STREETADDRESS": row.get("facility_address", "").strip(),
+                "CITY": row.get("facility_city", "").strip(),
+                "ZIPCODE": row.get("facility_zip", "").strip(),
+                "STATUS": row.get("facility_status", "").strip(),
+                "COUNTY": county,
+            }
+    return results
+
+
 def discover_facilities(childcare_types, counties):
     """Phase 1: collect all unique facility numbers via search."""
     all_facilities = {}  # fac_num -> {basic, type}
@@ -124,6 +169,15 @@ def discover_facilities(childcare_types, counties):
         print(f"    → {count} unique facilities so far this type")
 
     print(f"\n  Total unique facilities discovered: {len(all_facilities)} ({total_searches} searches)")
+
+    small_fcch = get_small_fcch_numbers(counties)
+    added = 0
+    for fnum, basic in small_fcch.items():
+        if fnum not in all_facilities:
+            all_facilities[fnum] = {"basic": basic, "type": "Family Child Care Home(Small)"}
+            added += 1
+    print(f"  + {added} small FCCHs added ({len(small_fcch)} in region, {len(small_fcch)-added} already known)")
+    print(f"  Grand total: {len(all_facilities)} facilities")
     return all_facilities
 
 

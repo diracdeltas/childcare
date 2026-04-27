@@ -28,7 +28,11 @@ python fetch_data.py --resume   # continue an interrupted run
 
 ## Data source
 
-All data is sourced from the California Department of Social Services, Community Care Licensing Division. Records are public information. This site is not affiliated with or endorsed by the State of California.
+Violations and complaints are sourced from the California Department of Social Services, Community Care Licensing Division (CCLD) Transparency API.
+
+Small family child care homes (type 0) are excluded from the CCLD search API. Their facility numbers are discovered separately from the [CA CHHS Open Data Portal](https://data.chhs.ca.gov/dataset/community-care-licensing-facilities) and detail records are then fetched individually from CCLD.
+
+Records are public information. This site is not affiliated with or endorsed by the State of California.
 
 ## License
 
