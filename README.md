@@ -16,14 +16,14 @@ Requires Python 3:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install requests
-python fetch_data.py
+python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara"
 ```
 
-To refresh a subset:
+To resume an interrupted run or refresh a single county:
 
 ```bash
+python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara" --resume
 python fetch_data.py --county "San Francisco"
-python fetch_data.py --resume   # continue an interrupted run
 ```
 
 ## Data source
