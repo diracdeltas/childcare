@@ -801,7 +801,6 @@
     .search-wrap { flex: 1 1 100%; min-width: 0; }
     select { min-width: 0; flex: 1; }
     .results-count { margin-left: 0; }
-    input[type="search"], select { font-size: 16px; }
 
     .sort-bar { padding: 8px 16px 4px; }
 
@@ -809,6 +808,11 @@
     .card-main { grid-template-columns: 1fr; padding: 11px 14px; }
     .card-right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
     .detail-inner { padding: 14px 14px 16px; gap: 14px; }
+  }
+
+  /* Prevent iOS/Android auto-zoom on input focus */
+  @media (hover: none) and (pointer: coarse) {
+    input[type="search"], select { font-size: 16px; }
   }
 
   @media print {
