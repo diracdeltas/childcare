@@ -10,21 +10,23 @@ const _parser = new DOMParser();
 
 function setHTML(el, html) {
   const doc = _parser.parseFromString(html, "text/html");
-  el.replaceChildren(...Array.from(doc.body.childNodes));
+  el.innerHTML = doc.body.innerHTML;
 }
 
 function showLoading(el, text) {
   const div = document.createElement("div");
   div.className = "report-loading";
   div.textContent = text;
-  el.replaceChildren(div);
+  el.innerHTML = "";
+  el.appendChild(div);
 }
 
 function showError(el, text) {
   const p = document.createElement("p");
   p.className = "report-error";
   p.textContent = text;
-  el.replaceChildren(p);
+  el.innerHTML = "";
+  el.appendChild(p);
 }
 
 // ── DATA LOADING ──────────────────────────────────────
@@ -182,7 +184,7 @@ async function loadInspectionCitations(facilityNumber) {
   try {
     const reports = await getReportList(facilityNumber);
     const inspReports = reports.map((r, i) => ({ ...r, _idx: i })).filter(r => !r.CONTROLNUMBER);
-    if (!inspReports.length) { container.replaceChildren(); return; }
+    if (!inspReports.length) { container.innerHTML = ""; return; }
     const results = await Promise.all(inspReports.map(m => getReportDetail(facilityNumber, m._idx)));
     const allDefs = [];
     const links = [];
@@ -193,10 +195,10 @@ async function loadInspectionCitations(facilityNumber) {
         links.push(`${CCLD_API}/FacilityReports?facNum=${facilityNumber}&inx=${inspReports[i]._idx}`);
       }
     }
-    if (!allDefs.length) { container.replaceChildren(); return; }
+    if (!allDefs.length) { container.innerHTML = ""; return; }
     setHTML(container, renderReport({ allegations: [], findings: [], deficiencies: allDefs }, links, { citationsLabel: "Other Citations" }));
   } catch (e) {
-    container.replaceChildren();
+    container.innerHTML = "";
   }
 }
 
@@ -279,7 +281,8 @@ function render() {
     const ep = document.createElement("p");
     ep.textContent = "No facilities match your filters.";
     empty.appendChild(ep);
-    container.replaceChildren(empty);
+    container.innerHTML = "";
+    container.appendChild(empty);
     return;
   }
 
@@ -655,7 +658,9 @@ async function init() {
     code2.textContent = "python -m http.server 8080";
     p2.appendChild(code2);
     msg.append(p1, p2);
-    document.getElementById("facility-list").replaceChildren(msg);
+    const fl = document.getElementById("facility-list");
+    fl.innerHTML = "";
+    fl.appendChild(msg);
     return;
   }
 
