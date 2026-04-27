@@ -855,3 +855,55 @@
 .report-links { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px; }
 .init-error-heading { color: var(--red); margin-bottom: 8px; }
 .init-error-code { font-family: var(--mono); background: var(--paper-warm); padding: 2px 6px; border-radius: 2px; }
+
+/* ── DARK MODE ───────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:        #E5DDD4;
+    --ink-light:  #9C8E82;
+    --paper:      #1C1411;
+    --paper-warm: #241C17;
+    --rule:       #3A2E27;
+    --red:        #F87171;
+    --red-dark:   #FCA5A5;
+    --red-light:  #3B1212;
+    --amber:      #FBBF24;
+    --amber-light:#2D1F08;
+    --green:      #86EFAC;
+    --green-light:#0F2318;
+  }
+
+  /* Sections using background: var(--ink) must stay dark */
+  .masthead  { background: #100D0B; }
+  .stats-bar { background: #100D0B; border-bottom-color: #2D2520; }
+  footer     { background: #100D0B; }
+
+  /* Cards and detail panels */
+  .facility-card       { background: var(--paper-warm); }
+  .facility-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .card-detail         { background: var(--paper); }
+  .complaint-item      { background: var(--paper-warm); }
+  .deficiency-item     { background: var(--paper-warm); }
+
+  /* Form controls */
+  input[type="search"],
+  select      { background-color: var(--paper-warm); color: var(--ink); }
+  select      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239C8E82'/%3E%3C/svg%3E"); }
+  .filter-btn { background-color: var(--paper-warm); }
+  .page-btn   { background-color: var(--paper-warm); }
+
+  /* Blue (complaint/pending) badges */
+  .badge-c,
+  .finding-pending,
+  .finding-open        { background: #1E3A5F; color: #93C5FD; border-color: #2563EB; }
+
+  /* Badge borders — lighten to work on dark backgrounds */
+  .badge-a,
+  .finding-substantiated,
+  .badge-substantiated { border-color: #7F1D1D; }
+  .badge-b,
+  .finding-inconclusive,
+  .finding-other       { border-color: #78350F; }
+  .badge-zero,
+  .finding-unsubstantiated { border-color: #14532D; }
+}
