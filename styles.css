@@ -845,7 +845,7 @@
   }
 
   /* Sections using background: var(--ink) must stay dark */
-  .masthead  { background: #100D0B; }
+  .masthead  { background: #100D0B; color: var(--ink); }
   .stats-bar { background: #100D0B; border-bottom-color: #2D2520; }
   footer     { background: #100D0B; }
 
