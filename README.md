@@ -19,11 +19,26 @@ pip install requests
 python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara"
 ```
 
-To resume an interrupted run or refresh a single county:
+### How caching works
+
+The script warm-starts from the existing `data/facilities.json` on every run. Facilities already present in that file are skipped — only newly discovered facility numbers are fetched. This makes incremental updates fast (a few minutes rather than ~20 minutes for a full run).
+
+| Flag | Behavior |
+|------|----------|
+| _(none)_ | Skip facilities already in `data/facilities.json`; fetch only new ones |
+| `--resume` | Also skip facilities saved in `data/cache.json` from an interrupted run |
+| `--full` | Ignore `data/facilities.json` and re-fetch everything from scratch (~20 min) |
+
+If a run is interrupted, re-run with `--resume` to continue from the checkpoint:
 
 ```bash
 python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara" --resume
-python fetch_data.py --county "San Francisco"
+```
+
+To re-fetch all data from scratch (e.g. to pick up updated violation counts):
+
+```bash
+python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara" --full
 ```
 
 ## Data source

@@ -384,7 +384,8 @@ def save_cache(cache):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--county", nargs="+", help="Limit to specific counties (can specify multiple)")
-    parser.add_argument("--resume", action="store_true", help="Skip already-cached facilities")
+    parser.add_argument("--resume", action="store_true", help="Continue an interrupted run using the checkpoint file")
+    parser.add_argument("--full", action="store_true", help="Re-fetch all facilities, ignoring existing data/facilities.json")
     args = parser.parse_args()
 
     os.makedirs("data", exist_ok=True)
@@ -403,9 +404,10 @@ def main():
     all_facilities = discover_facilities(childcare_types, counties)
 
     print("\nPhase 2: Fetching facility details…")
-    # Warm-start from existing facilities.json so already-fetched facilities are skipped.
-    # --resume additionally loads the in-progress checkpoint from a previous interrupted run.
-    existing = load_existing()
+    # By default, warm-start from existing facilities.json to skip already-fetched facilities.
+    # --full ignores it and re-fetches everything from scratch.
+    # --resume additionally merges an in-progress checkpoint from an interrupted run.
+    existing = {} if args.full else load_existing()
     checkpoint = load_cache() if args.resume else {}
     already_fetched = set(existing) | set(checkpoint)
     processed = list(existing.values()) + [v for k, v in checkpoint.items() if k not in existing]
