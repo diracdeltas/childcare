@@ -41,7 +41,13 @@ LARGE_COUNTIES = {"Los Angeles", "San Diego", "Orange", "Riverside", "San Bernar
 
 RATE_LIMIT = 0.15
 CACHE_FILE = "data/cache.json"
+CLOSED_FILE = "data/closed.json"
 CAP = 250  # API result cap per query
+
+
+def is_closed(status):
+    s = (status or "").strip().lower()
+    return s.startswith("closed") or s == "inactive"
 
 
 def get(url, params=None):
@@ -374,6 +380,18 @@ def save_cache(cache):
         json.dump(cache, f, separators=(",", ":"))
 
 
+def load_closed():
+    if os.path.exists(CLOSED_FILE):
+        with open(CLOSED_FILE) as f:
+            return set(json.load(f))
+    return set()
+
+
+def save_closed(numbers):
+    with open(CLOSED_FILE, "w") as f:
+        json.dump(sorted(numbers), f, indent=1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--county", nargs="+", help="Limit to specific counties (can specify multiple)")
@@ -397,25 +415,19 @@ def main():
     all_facilities = discover_facilities(childcare_types, counties)
 
     print("\nPhase 2: Fetching facility details…")
-    # Existing facilities always seed the output — no run can delete a facility.
-    # --full re-fetches details for everything discovered; existing data is still the fallback
-    #   if the API fails for a given facility during re-fetch.
-    # --resume additionally merges an in-progress checkpoint from an interrupted run.
     existing = load_existing()
+    known_closed = load_closed()
     checkpoint = load_cache() if args.resume else {}
 
-    # Output keyed by number so new fetches overwrite stale records cleanly.
     output_map = dict(existing)
     for k, v in checkpoint.items():
         output_map[k] = v
 
-    # --full: re-fetch all discovered facilities (skip only checkpoint entries if --resume).
-    # incremental: skip anything already in existing or checkpoint.
-    already_fetched = set(checkpoint) if args.full else set(existing) | set(checkpoint)
+    already_fetched = (set(checkpoint) if args.full else set(existing) | set(checkpoint)) | known_closed
 
     to_fetch = [(n, i) for n, i in all_facilities.items() if n not in already_fetched]
     total = len(to_fetch)
-    print(f"  {total} to fetch, {len(output_map)} already in data")
+    print(f"  {total} to fetch, {len(output_map)} already in data, {len(known_closed)} closed (skipped)")
 
     for i, (fnum, info) in enumerate(to_fetch):
         if i % 200 == 0 and i > 0:
@@ -432,9 +444,15 @@ def main():
 
     print(f"  Fetched {len(checkpoint)} facilities")
 
-    # Sort: most recent activity first
+    # Split closed from active; persist closed numbers so future runs skip them.
+    newly_closed = {num for num, fac in output_map.items() if is_closed(fac.get("status", ""))}
+    save_closed(known_closed | newly_closed)
+    active_map = {num: fac for num, fac in output_map.items() if num not in newly_closed}
+
+    print(f"  {len(newly_closed)} closed facilities excluded ({len(known_closed | newly_closed)} total known closed)")
+
     processed = sorted(
-        output_map.values(),
+        active_map.values(),
         key=lambda x: (x.get("most_recent_activity") or "0000-00-00"),
         reverse=True,
     )
