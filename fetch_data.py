@@ -361,18 +361,20 @@ def process(basic, type_name, detail):
 
 def load_existing():
     """Load already-fetched facilities from data/facilities.json as a warm cache."""
-    if os.path.exists("data/facilities.json"):
+    try:
         with open("data/facilities.json") as f:
             data = json.load(f)
         return {fac["number"]: fac for fac in data.get("facilities", []) if fac.get("number")}
-    return {}
+    except FileNotFoundError:
+        return {}
 
 
 def load_cache():
-    if os.path.exists(CACHE_FILE):
+    try:
         with open(CACHE_FILE) as f:
             return json.load(f)
-    return {}
+    except FileNotFoundError:
+        return {}
 
 
 def save_cache(cache):
@@ -381,10 +383,11 @@ def save_cache(cache):
 
 
 def load_closed():
-    if os.path.exists(CLOSED_FILE):
+    try:
         with open(CLOSED_FILE) as f:
             return set(json.load(f))
-    return set()
+    except FileNotFoundError:
+        return set()
 
 
 def save_closed(numbers):
@@ -419,9 +422,7 @@ def main():
     known_closed = load_closed()
     checkpoint = load_cache() if args.resume else {}
 
-    output_map = dict(existing)
-    for k, v in checkpoint.items():
-        output_map[k] = v
+    output_map = {**existing, **checkpoint}
 
     already_fetched = (set(checkpoint) if args.full else set(existing) | set(checkpoint)) | known_closed
 
@@ -444,12 +445,19 @@ def main():
 
     print(f"  Fetched {len(checkpoint)} facilities")
 
-    # Split closed from active; persist closed numbers so future runs skip them.
-    newly_closed = {num for num, fac in output_map.items() if is_closed(fac.get("status", ""))}
-    save_closed(known_closed | newly_closed)
-    active_map = {num: fac for num, fac in output_map.items() if num not in newly_closed}
+    active_map = {}
+    newly_closed = set()
+    for num, fac in output_map.items():
+        if is_closed(fac.get("status", "")):
+            newly_closed.add(num)
+        else:
+            active_map[num] = fac
+    if not active_map and existing:
+        raise RuntimeError("active_map is empty but existing data was non-empty — aborting to avoid data loss")
+    all_closed = known_closed | newly_closed
+    save_closed(all_closed)
 
-    print(f"  {len(newly_closed)} closed facilities excluded ({len(known_closed | newly_closed)} total known closed)")
+    print(f"  {len(newly_closed)} closed facilities excluded ({len(all_closed)} total known closed)")
 
     processed = sorted(
         active_map.values(),
