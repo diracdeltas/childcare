@@ -66,25 +66,19 @@ def get_counties():
     return [c["County"] for c in get(f"{BASE_URL}/CACounty").json() if c.get("County")]
 
 
-def search(fac_type_id, county="", city=""):
+def search(fac_type_id, county="", city="", zip_code=""):
     try:
         r = get(f"{BASE_URL}/FacilitySearch", params={
             "facType": fac_type_id,
             "facility": "", "Street": "",
-            "city": city, "zip": "",
+            "city": city, "zip": zip_code,
             "county": county, "facnum": ""
         })
         return r.json().get("FACILITYARRAY", [])
     except Exception as e:
-        print(f"  WARN search type={fac_type_id} county={county!r} city={city!r}: {e}", file=sys.stderr)
+        print(f"  WARN search type={fac_type_id} county={county!r} city={city!r} zip={zip_code!r}: {e}", file=sys.stderr)
         return []
 
-
-def get_cities_in_county(county):
-    """Get unique cities from a county by doing a broad search with type 850 (returns most)."""
-    facs = search(850, county=county)
-    cities = list({f.get("CITY", "").strip() for f in facs if f.get("CITY", "").strip()})
-    return cities
 
 
 def get_small_fcch_numbers(counties):
@@ -190,21 +184,20 @@ def discover_facilities(childcare_types, counties):
                 if fnum and fnum not in all_facilities:
                     all_facilities[fnum] = {"basic": f, "type": type_name}
 
-            # If we hit the cap on a large county, drill down by city
+            # If we hit the cap on a large county, drill down by zip code
             if at_cap and county in LARGE_COUNTIES:
-                print(f"    {county}: hit cap ({CAP}), drilling by city…")
-                cities = get_cities_in_county(county)
-                time.sleep(RATE_LIMIT)
-                for city in cities:
-                    city_results = search(type_id, county=county, city=city)
+                zip_codes = list({f.get("ZIPCODE", "").strip() for f in results if f.get("ZIPCODE", "").strip()})
+                print(f"    {county}: hit cap ({CAP}), drilling by {len(zip_codes)} zip codes…")
+                for zip_code in zip_codes:
+                    zip_results = search(type_id, county=county, zip_code=zip_code)
                     time.sleep(RATE_LIMIT)
                     total_searches += 1
-                    for f in city_results:
+                    for f in zip_results:
                         fnum = f.get("FACILITYNUMBER")
                         if fnum and fnum not in all_facilities:
                             all_facilities[fnum] = {"basic": f, "type": type_name}
-                    if len(city_results) == CAP:
-                        print(f"      {city}: still capped at {CAP} — some facilities may be missed")
+                    if len(zip_results) == CAP:
+                        print(f"      ZIP {zip_code}: still capped at {CAP} — some facilities may be missed")
 
         count = sum(1 for v in all_facilities.values() if v["type"] == type_name)
         print(f"    → {count} unique facilities so far this type")
