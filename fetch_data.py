@@ -397,17 +397,25 @@ def main():
     all_facilities = discover_facilities(childcare_types, counties)
 
     print("\nPhase 2: Fetching facility details…")
-    # By default, warm-start from existing facilities.json to skip already-fetched facilities.
-    # --full ignores it and re-fetches everything from scratch.
+    # Existing facilities always seed the output — no run can delete a facility.
+    # --full re-fetches details for everything discovered; existing data is still the fallback
+    #   if the API fails for a given facility during re-fetch.
     # --resume additionally merges an in-progress checkpoint from an interrupted run.
-    existing = {} if args.full else load_existing()
+    existing = load_existing()
     checkpoint = load_cache() if args.resume else {}
-    already_fetched = set(existing) | set(checkpoint)
-    processed = list(existing.values()) + [v for k, v in checkpoint.items() if k not in existing]
+
+    # Output keyed by number so new fetches overwrite stale records cleanly.
+    output_map = dict(existing)
+    for k, v in checkpoint.items():
+        output_map[k] = v
+
+    # --full: re-fetch all discovered facilities (skip only checkpoint entries if --resume).
+    # incremental: skip anything already in existing or checkpoint.
+    already_fetched = set(checkpoint) if args.full else set(existing) | set(checkpoint)
 
     to_fetch = [(n, i) for n, i in all_facilities.items() if n not in already_fetched]
     total = len(to_fetch)
-    print(f"  {total} to fetch, {len(already_fetched) - len(set(already_fetched) - set(all_facilities))} already in data")
+    print(f"  {total} to fetch, {len(output_map)} already in data")
 
     for i, (fnum, info) in enumerate(to_fetch):
         if i % 200 == 0 and i > 0:
@@ -418,14 +426,15 @@ def main():
         detail = get_detail(fnum)
         if detail:
             result = process(info["basic"], info["type"], detail)
-            processed.append(result)
+            output_map[fnum] = result
             checkpoint[fnum] = result
         time.sleep(RATE_LIMIT)
 
-    print(f"  Fetched {len(checkpoint)} new facilities")
+    print(f"  Fetched {len(checkpoint)} facilities")
 
     # Sort: most recent activity first
-    processed.sort(
+    processed = sorted(
+        output_map.values(),
         key=lambda x: (x.get("most_recent_activity") or "0000-00-00"),
         reverse=True,
     )
