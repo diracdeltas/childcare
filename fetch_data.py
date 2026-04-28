@@ -446,7 +446,7 @@ def main():
     }
 
     with open("data/facilities.json", "w") as f:
-        json.dump(output, f, separators=(",", ":"))
+        json.dump(output, f, indent=1)
 
     if os.path.exists(CACHE_FILE):
         os.remove(CACHE_FILE)

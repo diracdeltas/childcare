@@ -1,6 +1,6 @@
 # Bay Area Childcare Violations & Complaints
 
-A public transparency site showing complaints and violations for childcare facilities in San Francisco, Alameda, San Mateo, and Santa Clara counties. Data is sourced from the California Department of Social Services Community Care Licensing Division (CCLD).
+A public transparency site showing complaints and violations for childcare facilities in San Francisco, Marin, Alameda, San Mateo, and Santa Clara counties. Data is sourced from the California Department of Social Services Community Care Licensing Division (CCLD).
 
 ## What it shows
 
@@ -16,7 +16,7 @@ Requires Python 3:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install requests
-python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara"
+python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara"
 ```
 
 ### How caching works
@@ -32,13 +32,13 @@ The script warm-starts from the existing `data/facilities.json` on every run. Fa
 If a run is interrupted, re-run with `--resume` to continue from the checkpoint:
 
 ```bash
-python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara" --resume
+python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara" --resume
 ```
 
 To re-fetch all data from scratch (e.g. to pick up updated violation counts):
 
 ```bash
-python fetch_data.py --county "San Francisco" "Alameda" "San Mateo" "Santa Clara" --full
+python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara" --full
 ```
 
 ## Data source
