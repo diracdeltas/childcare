@@ -449,6 +449,9 @@ def enumerate_gap_facilities(all_known, target_counties, already_fetched):
             type_name = {
                 "FAMILY DAY CARE HOME": "Family Child Care Home(Small)",
                 "FAMILY DAY CARE HOME LARGE": "Family Child Care Home(Large)",
+                "INFANT CENTER": "Child Care - Infant Center",
+                "SCHOOL AGE DAY CARE CENTER": "School Age Child Care Center",
+                "DAY CARE CENTER": "Child Care Center Preschool",
             }.get(raw_type, raw_type.title())
             result = process(fd, type_name, detail)
             if not result.get("number"):
