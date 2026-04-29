@@ -44,6 +44,9 @@ CACHE_FILE = "data/cache.json"
 CLOSED_FILE = "data/closed.json"
 CAP = 250  # API result cap per query
 
+ENUM_MIN_DENSITY = 0.05   # skip prefix ranges with fewer than 5% known coverage
+ENUM_MAX_SPAN    = 6_000   # skip prefix ranges wider than this
+
 
 def is_closed(status):
     s = (status or "").strip().lower()
@@ -395,11 +398,74 @@ def save_closed(numbers):
         json.dump(sorted(numbers), f, indent=1)
 
 
+def enumerate_gap_facilities(all_known, target_counties, already_fetched):
+    """Scan gaps in dense facility-number ranges to find undiscovered facilities.
+
+    Small FCCHs are privacy-protected and absent from all bulk sources, but their
+    numbers fall within the same numeric ranges as other facilities. By enumerating
+    gaps we can discover them without any search API.
+    """
+    from collections import defaultdict
+    prefix_lists = defaultdict(list)
+    for fnum in all_known:
+        if fnum.isdigit() and len(fnum) >= 3:
+            prefix_lists[fnum[:3]].append(int(fnum))
+
+    target_upper = {c.upper() for c in target_counties}
+    found = {}
+    total_checked = 0
+
+    for prefix, nums in sorted(prefix_lists.items()):
+        nums.sort()
+        lo, hi = nums[0], nums[-1]
+        span = hi - lo + 1
+        density = len(nums) / span
+        if span > ENUM_MAX_SPAN or density < ENUM_MIN_DENSITY:
+            continue
+
+        known_set = {str(n) for n in nums}
+        gaps = [str(lo + i) for i in range(span)
+                if str(lo + i) not in known_set and str(lo + i) not in already_fetched]
+        if not gaps:
+            continue
+
+        print(f"    prefix {prefix}: {len(gaps)} gaps to check (span={span}, density={density:.0%})")
+        for i, fnum in enumerate(gaps):
+            if i % 500 == 0 and i > 0:
+                print(f"      {i}/{len(gaps)} checked, {len(found)} found so far…")
+            detail = get_detail(fnum)
+            total_checked += 1
+            time.sleep(RATE_LIMIT)
+            if not detail:
+                continue
+            fd = detail.get("FacilityDetail", {})
+            if not fd.get("FACILITYNUMBER"):
+                continue
+            if (fd.get("COUNTY") or "").strip().upper() not in target_upper:
+                continue
+            if is_closed(fd.get("STATUS") or ""):
+                continue
+            raw_type = (fd.get("FACILITYTYPE") or "").upper()
+            type_name = {
+                "FAMILY DAY CARE HOME": "Family Child Care Home(Small)",
+                "FAMILY DAY CARE HOME LARGE": "Family Child Care Home(Large)",
+            }.get(raw_type, raw_type.title())
+            result = process(fd, type_name, detail)
+            if not result.get("number"):
+                continue
+            print(f"      + {fnum}: {result['name']} ({fd.get('FACILITYTYPE')}, {result.get('county')})")
+            found[fnum] = result
+
+    print(f"  Checked {total_checked} numbers, found {len(found)} new facilities")
+    return found
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--county", nargs="+", help="Limit to specific counties (can specify multiple)")
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted run using the checkpoint file")
     parser.add_argument("--full", action="store_true", help="Re-fetch all facilities, ignoring existing data/facilities.json")
+    parser.add_argument("--enumerate-gaps", action="store_true", help="Scan numeric gaps in facility number ranges to find privacy-protected small FCCHs")
     args = parser.parse_args()
 
     os.makedirs("data", exist_ok=True)
@@ -425,6 +491,20 @@ def main():
     output_map = {**existing, **checkpoint}
 
     already_fetched = (set(checkpoint) if args.full else set(existing) | set(checkpoint)) | known_closed
+
+    if args.enumerate_gaps:
+        print("\n  [Gap enumeration] Scanning number ranges for undiscovered facilities…")
+        county_upper = {c.upper() for c in counties}
+        # Use only target-county numbers to define ranges; already_fetched covers the skip logic
+        range_numbers = set(all_facilities) | {
+            k for k, v in output_map.items()
+            if (v.get("county") or "").upper() in county_upper
+        }
+        gap_results = enumerate_gap_facilities(range_numbers, counties, already_fetched)
+        for fnum, result in gap_results.items():
+            output_map[fnum] = result
+            already_fetched.add(fnum)
+        print(f"  Gap enumeration complete: {len(gap_results)} new facilities added")
 
     to_fetch = [(n, i) for n, i in all_facilities.items() if n not in already_fetched]
     total = len(to_fetch)

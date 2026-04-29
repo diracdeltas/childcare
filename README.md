@@ -10,42 +10,45 @@ A public transparency site showing complaints and violations for childcare facil
 
 ## Updating the data
 
-Requires Python 3:
+### First-time setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install requests
-python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara"
 ```
 
-### How caching works
+### Regular refresh
 
-The script warm-starts from the existing `data/facilities.json` on every run. Facilities already present in that file are skipped — only newly discovered facility numbers are fetched. This makes incremental updates fast (a few minutes rather than ~20 minutes for a full run).
+Run this periodically (e.g. monthly) to pick up updated violations, complaints, and newly licensed facilities including small family child care homes:
+
+```bash
+source .venv/bin/activate
+python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara" --full --enumerate-gaps
+```
+
+This takes ~50 minutes.
+
+### Other options
 
 | Flag | Behavior |
 |------|----------|
-| _(none)_ | Skip facilities already in `data/facilities.json`; fetch only new ones |
-| `--resume` | Also skip facilities saved in `data/cache.json` from an interrupted run |
-| `--full` | Ignore `data/facilities.json` and re-fetch everything from scratch (~20 min) |
+| _(none)_ | Skip facilities already in `data/facilities.json`; only fetch newly discovered ones. Useful if you just want to quickly add a specific county or facility type without re-fetching everything. |
+| `--enumerate-gaps` | Also scan numeric gaps to find privacy-protected small FCCHs (~30 min extra) |
+| `--resume` | Continue an interrupted run from the checkpoint file |
+| `--full` | Re-fetch all facilities from scratch (~20 min, required to pick up updated violation/complaint counts) |
 
-If a run is interrupted, re-run with `--resume` to continue from the checkpoint:
+If a run is interrupted, re-run with `--resume`:
 
 ```bash
 python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara" --resume
-```
-
-To re-fetch all data from scratch (e.g. to pick up updated violation counts):
-
-```bash
-python fetch_data.py --county "San Francisco" "Marin" "Alameda" "San Mateo" "Santa Clara" --full
 ```
 
 ## Data source
 
 Violations and complaints are sourced from the California Department of Social Services, Community Care Licensing Division (CCLD) Transparency API.
 
-Small family child care homes (type 0) are excluded from the CCLD search API. Their facility numbers are discovered separately from the [CA CHHS Open Data Portal](https://data.chhs.ca.gov/dataset/community-care-licensing-facilities) and detail records are then fetched individually from CCLD.
+Small family child care homes (type 0) are excluded from the CCLD search API and absent from public bulk downloads due to privacy protections. They are discovered via two methods: supplemental data from the [CA CHHS Open Data Portal](https://data.chhs.ca.gov/dataset/community-care-licensing-facilities), and numeric gap enumeration (`--enumerate-gaps`) which scans the gaps between known facility numbers to find unlisted homes.
 
 Records are public information. This site is not affiliated with or endorsed by the State of California.
 
