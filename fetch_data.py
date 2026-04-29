@@ -439,6 +439,8 @@ def main():
         detail = get_detail(fnum)
         if detail:
             result = process(info["basic"], info["type"], detail)
+            if (result.get("number") or "").lower() == "facility number not found":
+                continue
             output_map[fnum] = result
             checkpoint[fnum] = result
         time.sleep(RATE_LIMIT)
