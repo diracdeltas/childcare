@@ -78,7 +78,7 @@ function applyFilters() {
     if (county && toTitle(f.county || "") !== county) return false;
     if (type && f.type !== type) return false;
     if (query) {
-      const haystack = [f.name, f.city, f.licensee, f.address, f.county].join(" ").toLowerCase();
+      const haystack = [f.name, f.city, f.licensee, f.address, f.county, f.number].join(" ").toLowerCase();
       if (!haystack.includes(query)) return false;
     }
     return true;
